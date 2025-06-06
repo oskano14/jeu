@@ -1,0 +1,135 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jeu 2D Pixel - Animations</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="https://pixijs.download/release/pixi.min.js"></script>
+    <script>
+      const app = new PIXI.Application({
+        width: 800,
+        height: 600,
+        backgroundColor: 0x1099bb,
+      });
+      document.body.appendChild(app.view);
+
+      const gravity = 0.8;
+      const groundY = 500;
+      let velocityY = 0;
+      let isJumping = false;
+      let isFalling = false;
+      const speed = 5;
+
+      const keys = {};
+      window.addEventListener("keydown", (e) => (keys[e.key] = true));
+      window.addEventListener("keyup", (e) => (keys[e.key] = false));
+
+      // Sol temporaire visuel
+      const tiles = [];
+      for (let i = 0; i < 20; i++) {
+        const tile = new PIXI.Graphics();
+        tile.beginFill(i % 2 === 0 ? 0x228b22 : 0x006400);
+        tile.drawRect(0, 0, 40, 40);
+        tile.endFill();
+        tile.x = i * 40;
+        tile.y = groundY + 40;
+        app.stage.addChild(tile);
+        tiles.push(tile);
+      }
+
+      // Chargement des gifs convertis en AnimatedSprite (via baseTexture)
+      const loader = PIXI.Loader.shared;
+      const animations = {
+        idle: "__Idle.gif",
+        run: "__Run.gif",
+        jump: "__Jump.gif",
+        fall: "__Fall.gif",
+        attack: "__AttackComboNoMovement.gif",
+      };
+
+      for (const key in animations) {
+        loader.add(key, animations[key]);
+      }
+
+      loader.load((loader, resources) => {
+        let player = new PIXI.Sprite(resources.idle.texture);
+        player.anchor.set(0.5, 1);
+        player.x = 100;
+        player.y = groundY;
+        app.stage.addChild(player);
+
+        let currentAnim = "idle";
+        let textures = {};
+        for (const key in resources) {
+          textures[key] = [resources[key].texture];
+        }
+
+        function switchAnimation(name) {
+          if (currentAnim === name) return;
+          currentAnim = name;
+          player.texture = textures[name][0];
+        }
+
+        app.ticker.add(() => {
+          let moving = false;
+
+          if (keys["ArrowRight"] || keys["d"]) {
+            player.x += speed;
+            player.scale.x = 1;
+            moving = true;
+          }
+          if (keys["ArrowLeft"] || keys["a"]) {
+            player.x -= speed;
+            player.scale.x = -1;
+            moving = true;
+          }
+
+          if ((keys[" "] || keys["Spacebar"]) && !isJumping && !isFalling) {
+            switchAnimation("attack");
+            return;
+          }
+
+          if ((keys["ArrowUp"] || keys["w"]) && !isJumping) {
+            velocityY = -15;
+            isJumping = true;
+            isFalling = false;
+            switchAnimation("jump");
+          }
+
+          velocityY += gravity;
+          player.y += velocityY;
+
+          if (player.y >= groundY) {
+            player.y = groundY;
+            velocityY = 0;
+            if (isJumping || isFalling) {
+              isJumping = false;
+              isFalling = false;
+              switchAnimation(moving ? "run" : "idle");
+            }
+          } else {
+            if (velocityY > 0 && !isFalling) {
+              switchAnimation("fall");
+              isFalling = true;
+            }
+          }
+
+          if (!isJumping && !isFalling && !keys[" "]) {
+            switchAnimation(moving ? "run" : "idle");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
